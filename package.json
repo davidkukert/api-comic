@@ -1,0 +1,11 @@
+{
+  "name": "api-comics",
+  "module": "src/http/server.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
