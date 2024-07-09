@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RolesEnum {
+  ADMIN
+  READER
+}
+
+model User {
+  id        String    @id
+  username  String    @unique
+  password  String
+  role      RolesEnum @default(READER)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("tb_users")
+}
+
+enum MediaTypeProject {
+  MANGA
+  MANHWA
+  MANHUA
+}
+
+model Project {
+  id                 String           @id
+  title              String
+  titlesAlternatives String[]         @map("titles_alternatives")
+  slug               String           @unique
+  description        String
+  cover              String
+  adult              Boolean
+  authors            Json
+  mediaType          MediaTypeProject
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  chapters Chapter[]
+  tags     Tag[]     @relation("tb_rel_projects_tags")
+
+  @@map("tb_projects")
+}
+
+model Chapter {
+  id        String   @id
+  number    String
+  title     String?
+  pages     Json
+  projectId String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([number, projectId])
+  @@map("tb_chapters")
+}
+
+model Tag {
+  id   String @id
+  name String
+  slug String @unique
+
+  projects Project[] @relation("tb_rel_projects_tags")
+
+  @@map("tb_tags")
+}
