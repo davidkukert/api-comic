@@ -15,7 +15,10 @@
     "dev": "bun --watch src/http/server.ts"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.2.2",
     "@prisma/client": "5.16.2",
+    "hono": "^4.4.12",
+    "ulid": "^2.3.0",
     "zod": "^3.23.8"
   }
 }
