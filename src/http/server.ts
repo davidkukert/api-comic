@@ -5,6 +5,7 @@ import { projectsRoutes } from './routes/projects'
 import { chaptersRoutes } from './routes/chapters'
 import { tagsRoutes } from './routes/tags'
 import { authRoutes } from './auth/routes'
+import { uploadsRoutes } from './routes/uploads'
 
 const app = new Hono()
 
@@ -13,6 +14,7 @@ app.route('/projects', projectsRoutes)
 app.route('/chapters', chaptersRoutes)
 app.route('/tags', tagsRoutes)
 app.route('/auth', authRoutes)
+app.route('/uploads', uploadsRoutes)
 
 export default {
   port: env.API_PORT,
