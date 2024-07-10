@@ -5,13 +5,16 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import * as path from 'path'
+import { authHandlers } from '../auth/middleware'
 
 const uploadsRoutes = new Hono()
 
 uploadsRoutes.post(
   '/projects/:id/cover',
+  ...authHandlers(),
   zValidator('form', CoverUploadInput),
   async (c) => {
+    c.get('ability')('create', 'Project')
     const id = c.req.param('id')
     const project = await db.project.findUnique({ where: { id } })
     if (!project) {
@@ -38,7 +41,8 @@ uploadsRoutes.post(
   },
 )
 
-uploadsRoutes.get('/projects/:id/cover', async (c) => {
+uploadsRoutes.get('/projects/:id/cover', ...authHandlers(true), async (c) => {
+  c.get('ability')('readDetails', 'Project')
   const id = c.req.param('id')
   const project = await db.project.findUnique({ where: { id } })
   if (!project) {
@@ -67,8 +71,10 @@ uploadsRoutes.get('/projects/:id/cover', async (c) => {
 
 uploadsRoutes.post(
   '/chapters/:id/pages',
+  ...authHandlers(),
   zValidator('form', PagesUploadInput),
   async (c) => {
+    c.get('ability')('create', 'Chapter')
     const id = c.req.param('id')
     const chapter = await db.chapter.findUnique({ where: { id } })
     if (!chapter) {
@@ -102,35 +108,40 @@ uploadsRoutes.post(
   },
 )
 
-uploadsRoutes.get('/chapters/:id/pages/:pageName', async (c) => {
-  const id = c.req.param('id')
-  const pageName = c.req.param('pageName')
-  const chapter = await db.chapter.findUnique({ where: { id } })
-  if (!chapter) {
-    throw new HTTPException(404, { message: 'Chapter not found' })
-  }
+uploadsRoutes.get(
+  '/chapters/:id/pages/:pageName',
+  ...authHandlers(true),
+  async (c) => {
+    c.get('ability')('readDetails', 'Chapter')
+    const id = c.req.param('id')
+    const pageName = c.req.param('pageName')
+    const chapter = await db.chapter.findUnique({ where: { id } })
+    if (!chapter) {
+      throw new HTTPException(404, { message: 'Chapter not found' })
+    }
 
-  const directoryKey = `projects/${chapter.projectId}/chapters/${chapter.id}`
-  const key = `${directoryKey}/${pageName}`
+    const directoryKey = `projects/${chapter.projectId}/chapters/${chapter.id}`
+    const key = `${directoryKey}/${pageName}`
 
-  return getObject(key)
-    .then(async (response) => {
-      const { Body, ContentType, ContentLength } = response
+    return getObject(key)
+      .then(async (response) => {
+        const { Body, ContentType, ContentLength } = response
 
-      if (!Body) {
-        throw new HTTPException(404, { message: 'Page not found' })
-      }
+        if (!Body) {
+          throw new HTTPException(404, { message: 'Page not found' })
+        }
 
-      c.header('Content-Type', ContentType || 'application/octet-stream')
-      c.header('Content-Length', ContentLength?.toString() || '')
-      return c.body(Body.transformToWebStream())
-    })
-    .catch((error) => {
-      if (error.name === 'NoSuchKey') {
-        throw new HTTPException(404, { message: 'Page not found' })
-      }
-      throw new HTTPException(500, { message: 'Error getting page' })
-    })
-})
+        c.header('Content-Type', ContentType || 'application/octet-stream')
+        c.header('Content-Length', ContentLength?.toString() || '')
+        return c.body(Body.transformToWebStream())
+      })
+      .catch((error) => {
+        if (error.name === 'NoSuchKey') {
+          throw new HTTPException(404, { message: 'Page not found' })
+        }
+        throw new HTTPException(500, { message: 'Error getting page' })
+      })
+  },
+)
 
 export { uploadsRoutes }

@@ -4,12 +4,16 @@ import { UserCreateInput, UserUpdateInput } from '@/schemas/users'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { ulid } from 'ulid'
+import { authHandlers } from '../auth/middleware'
+import { subject } from '@casl/ability'
 
 const usersRoutes = new Hono()
 
 usersRoutes.onError(handlerError('User'))
 
-usersRoutes.get('/', async (c) => {
+usersRoutes.get('/', ...authHandlers(true), async (c) => {
+  c.get('ability')('readList', 'User')
+
   const list = await db.user.findMany({
     select: {
       id: true,
@@ -22,7 +26,9 @@ usersRoutes.get('/', async (c) => {
   return c.json(list)
 })
 
-usersRoutes.get('/:id', async (c) => {
+usersRoutes.get('/:id', ...authHandlers(true), async (c) => {
+  c.get('ability')('readDetails', 'User')
+
   const id = c.req.param('id')
   const details = await db.user.findUniqueOrThrow({
     where: { id },
@@ -52,23 +58,36 @@ usersRoutes.post('/', zValidator('json', UserCreateInput), async (c) => {
   return c.json('User created successfully', 201)
 })
 
-usersRoutes.put('/:id', zValidator('json', UserUpdateInput), async (c) => {
+usersRoutes.put(
+  '/:id',
+  ...authHandlers(),
+  zValidator('json', UserUpdateInput),
+  async (c) => {
+    const id = c.req.param('id')
+
+    const user = await db.user.findUniqueOrThrow({ where: { id } })
+    c.get('ability')('update', subject('User', user))
+
+    const { username, password } = c.req.valid('json')
+
+    await db.user.update({
+      where: { id },
+      data: {
+        username,
+        password: password ? Bun.password.hashSync(password) : undefined,
+      },
+    })
+
+    return c.json('User updated successfully')
+  },
+)
+
+usersRoutes.delete('/:id', ...authHandlers(), async (c) => {
   const id = c.req.param('id')
-  const { username, password } = c.req.valid('json')
 
-  await db.user.update({
-    where: { id },
-    data: {
-      username,
-      password: password ? Bun.password.hashSync(password) : undefined,
-    },
-  })
+  const user = await db.user.findUniqueOrThrow({ where: { id } })
+  c.get('ability')('update', subject('User', user))
 
-  return c.json('User updated successfully')
-})
-
-usersRoutes.delete('/:id', async (c) => {
-  const id = c.req.param('id')
   await db.user.delete({ where: { id } })
   return c.json('User deleted successfully')
 })

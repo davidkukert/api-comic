@@ -15,6 +15,10 @@ export function handlerError(model: Prisma.ModelName): ErrorHandler {
       }
     }
 
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      return c.json('Database is not connected', 500)
+    }
+
     if (error instanceof HTTPException) {
       return error.getResponse()
     }
