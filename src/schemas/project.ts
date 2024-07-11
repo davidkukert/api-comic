@@ -18,3 +18,11 @@ export const ProjectCreateInput = z.object({
 })
 
 export const ProjectUpdateInput = ProjectCreateInput.partial()
+
+export const ProjectManageTagsInput = z.object({
+  tags: z.array(z.string().ulid()),
+})
+
+export const ProjectManageTagsQuery = z.object({
+  action: z.enum(['add', 'remove']),
+})

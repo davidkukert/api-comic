@@ -1,10 +1,16 @@
 import { db } from '@/db/connection'
 import { handlerError } from '@/errors/handlerError'
-import { ProjectCreateInput, ProjectUpdateInput } from '@/schemas/project'
+import {
+  ProjectCreateInput,
+  ProjectManageTagsInput,
+  ProjectManageTagsQuery,
+  ProjectUpdateInput,
+} from '@/schemas/project'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { ulid } from 'ulid'
 import { authHandlers } from '../auth/middleware'
+import { HTTPException } from 'hono/http-exception'
 
 const projectsRoutes = new Hono()
 
@@ -114,5 +120,52 @@ projectsRoutes.delete('/:id', ...authHandlers(), async (c) => {
 
   return c.json('Project deleted successfully')
 })
+
+projectsRoutes.put(
+  '/:id/tags',
+  ...authHandlers(),
+  zValidator('json', ProjectManageTagsInput),
+  zValidator('query', ProjectManageTagsQuery),
+  async (c) => {
+    c.get('ability')('update', 'Project')
+    const id = c.req.param('id')
+    const project = await db.project.findUniqueOrThrow({ where: { id } })
+    const { tags } = c.req.valid('json')
+    const { action } = c.req.valid('query')
+    const tagsList = []
+    for (const tag of tags) {
+      const tagExists = await db.tag.findUnique({ where: { id: tag } })
+      if (tagExists) {
+        tagsList.push({ id: tagExists.id })
+      }
+    }
+
+    if (tagsList.length === 0) {
+      throw new HTTPException(400, { message: 'Tags Ids invalids' })
+    }
+
+    if (action === 'add') {
+      await db.project.update({
+        where: { id: project.id },
+        data: {
+          tags: {
+            connect: tagsList,
+          },
+        },
+      })
+    } else if (action === 'remove') {
+      await db.project.update({
+        where: { id: project.id },
+        data: {
+          tags: {
+            disconnect: tagsList,
+          },
+        },
+      })
+    }
+
+    return c.json(`Tags ${action} to project successfully`)
+  },
+)
 
 export { projectsRoutes }
